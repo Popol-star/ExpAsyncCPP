@@ -2,18 +2,22 @@
 #include <coroutine>
 #include <optional>
 #include <tuple>
-
+/*
+    Interface defining when a awaitable is ready.
+*/
 struct Pollable {
-    //Check if the struct is valid.
-    virtual bool is_valid() = 0;
+    //Check if the struct is ready.
+    //if return true, the executor should resume.
+    virtual bool is_ready() = 0;
 };
 /*
-
+    Executor Interface.
 */
 struct Executor {
 public:
     //wake up the executor callback. Must be thread safe.
     virtual void awake() = 0;
+
     enum class TaskPriority
     {
         Direct,//awake() not needed to invoke the firt poll.
@@ -22,11 +26,16 @@ public:
     //add a waiting task to the executor.(always called on the executor thread)
     //if pollable is null, the coroutine_handle is always resumed when polled.
     virtual void add_task(std::coroutine_handle<> handle, Pollable* pollable,TaskPriority priority= TaskPriority::Indirect) = 0;
+    
+    void add_task(std::coroutine_handle<> handle, TaskPriority priority = TaskPriority::Indirect){
+        add_task(handle, nullptr, priority);
+    }
     //maybe virtual destructor?
+    //I dunno, maybe?
 };
 
 /*
-    The coroutine call executor::awake as final suspend.
+    The coroutine call executor::awake for final suspend.
 */
 struct AsyncFinalWait {
     Executor* executor;
@@ -44,7 +53,7 @@ struct AsyncFinalWait {
 
 template <class T>
 struct AsyncPromise {
-    std::optional<T> _data = std::nullopt;
+    std::optional<T> _data = std::nullopt;//the data returned by the coroutine
     Executor* executor = nullptr;
     std::coroutine_handle<AsyncPromise<T>> get_return_object() {
         return std::coroutine_handle<AsyncPromise<T>>::from_promise(*this);
@@ -61,6 +70,7 @@ struct AsyncPromise {
     }
     void unhandled_exception() const noexcept{}
 };
+
 
 template <>
 struct AsyncPromise<void> {
@@ -81,6 +91,7 @@ struct AsyncPromise<void> {
 template <class T>
 struct AsyncCoroutine {      
     using promise_type = AsyncPromise<T>;
+    using return_type = T;
     AsyncCoroutine() :handle(nullptr){}
     AsyncCoroutine(std::coroutine_handle<AsyncPromise<T>> handle) : handle{ handle } {}
     AsyncCoroutine(const AsyncCoroutine&) = delete;//not copiable
@@ -109,17 +120,30 @@ struct AsyncCoroutine {
         return handle != nullptr;
     }
     //should not be called if not done
-    T& get_return_value() & {
+    return_type& get_return_value() & {
         return *(handle.promise()._data);
     }
-    //should not be called if not done
-    T&& get_return_value()&& {
+    /*
+    * Get the value returned by the coroutine.
+    * Should not be called if not done.
+    */
+    
+    return_type&& get_return_value()&& {
         return std::move(*(handle.promise()._data));
     }
-    //should not be called if not done
-    const T& get_return_value()const & {
+    /*
+    * Get the value returned by the coroutine.
+    * Should not be called if not done.
+    * Const overloading.
+    */
+    const return_type& get_return_value()const & {
         return *(handle.promise()._data);
     }
+    /*
+    * Get the value returned by the coroutine.
+    * Should not be called if not done.
+    * Rvalue overloading.
+    */
     void set_executor(Executor* executor) {
         handle.promise().executor = executor;
     }
@@ -132,12 +156,12 @@ struct AsyncCoroutine {
         }
     }
     std::coroutine_handle<AsyncPromise<T>> handle;
-    // Inherited via Pollable
 };
 
 template <>
 struct AsyncCoroutine<void> {
     using promise_type= AsyncPromise<void>;
+    using return_type = std::monostate;
     AsyncCoroutine() :handle(nullptr) {}
     AsyncCoroutine(std::coroutine_handle<AsyncPromise<void>> handle) : handle{ handle } {}
     AsyncCoroutine(const AsyncCoroutine&) = delete;
@@ -176,21 +200,26 @@ struct AsyncCoroutine<void> {
             handle.destroy();
         }
     }
-    constexpr std::monostate get_return_value() const noexcept {
+    constexpr return_type get_return_value() const noexcept {
         return {};
     }
     std::coroutine_handle<AsyncPromise<void>> handle;
 };
+/*
+    CRTP class for Awaitable.
 
+*/
 template<class T>
 struct Awaitable: private Pollable {
     // Inherited via Pollable
-    bool is_valid() override
+    bool is_ready() override
     {
+        //return poll()
         return (static_cast<T*>(this))->poll();
     }
     bool await_ready() 
     {
+        //return poll()
         return (static_cast<T*>(this))->poll();
     }
     template <class RET>
@@ -267,17 +296,17 @@ struct GenericJoinAwaitable : Awaitable<GenericJoinAwaitable<Awaitables...>> {
     explicit GenericJoinAwaitable(Awaitables&&... awaitables)
         : awaitables(std::forward<Awaitables>(awaitables)...) {}
 
-    // Vérifie si tous les awaitables sont prêts
+    // VÃ©rifie si tous les awaitables sont prÃªts
     bool poll() {
         return std::apply([](auto&... a) { return (a.poll() && ...); }, awaitables);
     }
 
-    // Souscrire tous les awaitables à un exécuteur
+    // Souscrire tous les awaitables Ã  un exÃ©cuteur
     void subscribe(Executor* executor) {
         std::apply([executor](auto&... a) { (a.subscribe(executor), ...); }, awaitables);
     }
 
-    // Récupère les résultats de tous les awaitables
+    // RÃ©cupÃ¨re les rÃ©sultats de tous les awaitables
     auto await_resume() {
         return std::apply([](auto&... a) { return std::make_tuple(a.await_resume()...); }, awaitables);
     }
@@ -290,17 +319,17 @@ struct TaskJoinAwaitable : Awaitable<GenericJoinAwaitable<Awaitables...>> {
     explicit TaskJoinAwaitable(Awaitables&&... awaitables)
         : awaitables(std::forward<Awaitables>(awaitables)...) {}
 
-    // Vérifie si tous les awaitables sont prêts
+    // VÃ©rifie si tous les awaitables sont prÃªts
     bool poll() {
         return std::apply([](auto&... a) { return (a.poll() && ...); }, awaitables);
     }
 
-    // Souscrire tous les awaitables à un exécuteur
+    // Souscrire tous les awaitables Ã  un exÃ©cuteur
     void subscribe(Executor* executor) {
         std::apply([executor](auto&... a) { (a.subscribe(executor), ...); }, awaitables);
     }
 
-    // Récupère les résultats de tous les awaitables
+    // RÃ©cupÃ¨re les rÃ©sultats de tous les awaitables
     constexpr void await_resume() const noexcept{}
 };
 template<class T,class RETURN>
@@ -319,7 +348,7 @@ concept ToAwaitable = requires(T a) {
 
 template <typename... AwaitableParams>
 auto join(AwaitableParams&&... params) {
-    // Applique `to_awaitable` sur chaque paramètre pour récupérer les awaitables
+    // Applique `to_awaitable` sur chaque paramÃ¨tre pour rÃ©cupÃ©rer les awaitables
     return GenericJoinAwaitable(to_awaitable(std::forward<AwaitableParams>(params))...);
 }
 template <typename... AwaitableParams>
