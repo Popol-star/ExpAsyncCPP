@@ -338,7 +338,7 @@ concept AwaitableConcept = requires(T a,Executor* e)
     std::is_base_of<Awaitable<T>, T>::value; 
     { a.poll() } -> std::same_as<bool>;
     { a.subscribe(e) } -> std::same_as<void>;
-    { a.await_resume() } -> std::same_as<RETURN>;
+     requires std::common_reference_with<decltype(a.await_resume()), RETURN>;
 };
 
 template<class T,class E>
