@@ -31,4 +31,8 @@
 *.out
 *.app
 
+#visual studio configuration folder
 /.vscode
+/.vs
+/build
+/out
