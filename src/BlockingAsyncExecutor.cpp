@@ -1,5 +1,5 @@
 #include "BlockingAsyncExecutor.h"
-
+using namespace async;
 BlockingExecutor::BlockingExecutor():
     _mtx(),
     _awake(false),
@@ -54,4 +54,3 @@ void BlockingExecutor::add_task(std::coroutine_handle<> handle, Pollable* pollab
         break;
     }
 }
-

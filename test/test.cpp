@@ -2,42 +2,41 @@
 #include <UnBoundedSPSC.h>
 #include <BlockingAsyncExecutor.h>
 
-static AsyncCoroutine<void> co(SPSCReader<int>&& reader) {
-    while (true) {
-        std::optional<int> t = co_await reader.popAsync();
-        if (t) {
-            std::cout << *t << std::endl;
-        }
-        else {
-            printf("writer closed\n");
-            co_return;
-        }
+static async::AsyncCoroutine<void> co(async::SPSCReader<int>&& reader) {
+    std::vector<int> t= co_await async::utils::collect(std::move(reader));
+    for (int i : t) {
+        std::cout << "{ " << i << " }";
     }
+    std::cout << std::endl;
 };
-static AsyncCoroutine<void> test(SPSCReader<int>&& reader1, SPSCReader<int>&& reader2) {
+
+static async::AsyncCoroutine<void> test(async::SPSCReader<int>&& reader1, async::SPSCReader<int>&& reader2) {
     co_await join_task(co(std::move(reader1)),
                        co(std::move(reader2)));
 }
+
 int main()
 {
-    auto spsc = std::make_shared<UnBoundedSPSC<int>>();
-    auto spsc2 = std::make_shared<UnBoundedSPSC<int>>();
-    std::thread t1([writer = SPSCWriter<int>(spsc)]() mutable {
+    auto spsc =  std::make_shared<async::UnBoundedSPSC<int>>();
+    auto spsc2 = std::make_shared<async::UnBoundedSPSC<int>>();
+    std::thread t1([writer = async::SPSCWriter<int>(spsc)]() mutable {
         int i = 0;
         while (i < 10) {
-            std::this_thread::sleep_for(std::chrono::seconds(2));
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
             writer.push(1);
             i++;
         }
     });
-    std::thread t2([writer = SPSCWriter<int>(spsc2)]() mutable {
+    std::thread t2([writer = async::SPSCWriter<int>(spsc2)]() mutable {
         int i = 0;
         while (i < 15) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
             writer.push(2);
             i++;
         }
-        });    BlockingExecutor().block_on(test(SPSCReader(spsc), SPSCReader(spsc2)));
+    });   
+    async::BlockingExecutor().block_on(test(async::SPSCReader(spsc), 
+                                            async::SPSCReader(spsc2)));
     t1.join();
     t2.join();
 }

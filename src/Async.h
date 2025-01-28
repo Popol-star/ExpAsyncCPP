@@ -2,6 +2,7 @@
 #include <coroutine>
 #include <optional>
 #include <tuple>
+namespace async {
 /*
     Interface defining when a awaitable is ready.
 */
@@ -354,4 +355,5 @@ auto join(AwaitableParams&&... params) {
 template <typename... AwaitableParams>
 auto join_task(AwaitableParams&&... params) {
     return TaskJoinAwaitable(to_awaitable(std::forward<AwaitableParams>(params))...);
+}
 }
