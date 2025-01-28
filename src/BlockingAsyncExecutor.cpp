@@ -22,7 +22,7 @@ void BlockingExecutor::block_on(AsyncCoroutine<void> coroutine)
         }
         auto it = _waitings.begin();
         while (it != _waitings.end()) {
-            if (!it->pollable || it->pollable->is_valid()) {
+            if (!it->pollable || it->pollable->is_ready()) {
                 it->handle.resume();
                 it = _waitings.erase(it);
             }

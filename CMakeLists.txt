@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.5.0)
 project(ExpAsyncCPP VERSION 0.1.0 LANGUAGES C CXX)
-set(CXX_STANDARD 20)
-set(CXX_STANDARD_REQUIRED TRUE)
-add_library(ExpAsyncCPP src/BlockingAsyncExecutor.cpp)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_BUILD_TYPE debug)
+add_subdirectory(src)
+add_subdirectory(test)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
+add_library(ExpAsyncCPP src/BlockingAsyncExecutor.cpp)
