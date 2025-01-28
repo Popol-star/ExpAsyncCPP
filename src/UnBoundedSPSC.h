@@ -60,41 +60,59 @@ public:
           return retval;
       }   
 };
+/*
+    SPSC Queue write.
 
+    Cannot be copied. Only move.
+*/
 template<class T>
 class SPSCWriter {
 private:
     std::shared_ptr<UnBoundedSPSC<T>> _spsc;
 public:
     SPSCWriter(std::shared_ptr<UnBoundedSPSC<T>> spsc) :_spsc(std::move(spsc)) {}
-    SPSCWriter(const SPSCWriter&) = delete;
-    SPSCWriter& operator =(const SPSCWriter&) = delete;
+    SPSCWriter(const SPSCWriter&) = delete;//not copiable
+    SPSCWriter& operator =(const SPSCWriter&) = delete;//not copiable
     SPSCWriter(SPSCWriter&& src) noexcept :_spsc(std::move(src._spsc)) {};
     SPSCWriter& operator =(SPSCWriter&& src) noexcept {
         this->_spsc = std::move(src._spsc);
         return *this;
     };
-
+    /*
+       emplace element at the end.
+    */
     template<class ...Args>
     void emplace(Args&& ...args) {
         _spsc->emplace(std::forward<Args>(args)...);
     }
-
+    /*
+       Push element at the end.
+       move overload
+    */
     void push(T&& element) {
         _spsc->push(std::move(element));
     }
-
+    /*
+        Push element at the end.
+        Copy overload
+    */
     void push(const T& element) {
         _spsc->push(element);
     }
     
     ~SPSCWriter() {
         if (_spsc) {
+            //Signal the writer is deleted.
             _spsc->closeWriter();
         }
     }
 };
 
+/*
+    SPSC Queue reader.
+
+    Cannot be copied. Only move.
+*/
 template<class T>
 class SPSCReader {
 private:
@@ -103,6 +121,15 @@ public:
     SPSCReader(std::shared_ptr<UnBoundedSPSC<T>> spsc):_spsc(std::move(spsc)){}
     SPSCReader(const SPSCReader&) = delete;
     SPSCReader(SPSCReader&& src) noexcept:_spsc(std::move(src._spsc)) {};
+    SPSCReader& operator =(const SPSCReader&) = delete;
+    SPSCReader& operator =(SPSCReader&& src) noexcept {
+        this->_spsc = std::move(src._spsc);
+        return *this;
+    };
+    /*
+        Asynchronously get one element from the spsc queue.
+        If the result is none,the writer is deleted (no elements will be inserted anymore).
+    */
     AwaitableConcept<std::optional<T>> auto popAsync() {
         struct AWT:Awaitable<AWT>{
             std::shared_ptr<UnBoundedSPSC<T>> spsc;

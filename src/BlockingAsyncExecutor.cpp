@@ -53,6 +53,5 @@ void BlockingExecutor::add_task(std::coroutine_handle<> handle, Pollable* pollab
         _waitings.push_back({ handle,pollable });
         break;
     }
-   
 }
 

@@ -11,7 +11,7 @@ struct Pollable {
     virtual bool is_ready() = 0;
 };
 /*
-    Executor Interface.P
+    Executor Interface.
 */
 struct Executor {
 public:
