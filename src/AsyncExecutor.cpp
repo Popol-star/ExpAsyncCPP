@@ -73,7 +73,6 @@ void async::NBlockingExecutor::add_task(std::coroutine_handle<> handle, Pollable
     case TaskPriority::Indirect:
         _waitings.push_back({ handle,pollable });
         break;
-
     }
 }
 
@@ -105,3 +104,4 @@ bool async::NBlockingExecutor::is_finished() const noexcept
 {
     return !_coroutine||_coroutine.done();
 }
+ 

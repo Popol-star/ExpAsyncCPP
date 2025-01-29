@@ -10,11 +10,6 @@ static async::AsyncCoroutine<void> co(async::SPSCReader<int>&& reader) {
     std::cout << std::endl;
 };
 
-static async::AsyncCoroutine<void> test(async::SPSCReader<int> reader1, async::SPSCReader<int> reader2) {
-    co_await join_task(co(std::move(reader1)),
-                       co(std::move(reader2)));
-}
-
 int main()
 {
     auto spsc =  std::make_shared<async::UnBoundedSPSC<int>>();
@@ -23,7 +18,7 @@ int main()
         int i = 0;
         while (i < 10) {
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
-            writer.push(1);
+            writer.push(i);
             i++;
         }
     });
@@ -31,12 +26,14 @@ int main()
         int i = 0;
         while (i < 15) {
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
-            writer.push(2);
+            writer.push(i);
             i++;
         }
     });
-
-    async::BlockingExecutor().block_on(test(async::SPSCReader(spsc), async::SPSCReader(spsc2)));
+    async::BlockingExecutor().block_on([&spsc,&spsc2]()->async::AsyncCoroutine<void>{
+        co_await join_task(co(std::move(async::SPSCReader(spsc))),
+                           co(async::SPSCReader(spsc2)));
+        }());
     t1.join();
     t2.join();
 }

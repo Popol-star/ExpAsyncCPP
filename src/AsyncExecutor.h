@@ -39,8 +39,17 @@ namespace async {
         //
         void add_task(std::coroutine_handle<> handle, Pollable* pollable, TaskPriority priority) override;
     public:
+        /*
+            
+        */
         void update();
+        /*
+            Set the coroutine.
+        */
         void start(AsyncCoroutine<void> coroutine);
+        /*
+            Returns true if the given coroutine is done
+        */
         bool is_finished() const noexcept;
     };
 }
