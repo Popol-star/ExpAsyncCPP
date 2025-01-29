@@ -151,7 +151,9 @@ namespace async {
             return AWT(_spsc);
         }
         ~SPSCReader() {
-            _spsc->setConsumerExecutor(nullptr);
+            if (_spsc) {
+                _spsc->setConsumerExecutor(nullptr);
+            }
         }
     };
 
@@ -169,5 +171,4 @@ namespace async {
             co_return retval;
         }
     }
-    
 }

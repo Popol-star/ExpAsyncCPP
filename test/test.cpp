@@ -1,6 +1,6 @@
 #include <iostream>
 #include <UnBoundedSPSC.h>
-#include <BlockingAsyncExecutor.h>
+#include <AsyncExecutor.h>
 
 static async::AsyncCoroutine<void> co(async::SPSCReader<int>&& reader) {
     std::vector<int> t= co_await async::utils::collect(std::move(reader));
@@ -10,7 +10,7 @@ static async::AsyncCoroutine<void> co(async::SPSCReader<int>&& reader) {
     std::cout << std::endl;
 };
 
-static async::AsyncCoroutine<void> test(async::SPSCReader<int>&& reader1, async::SPSCReader<int>&& reader2) {
+static async::AsyncCoroutine<void> test(async::SPSCReader<int> reader1, async::SPSCReader<int> reader2) {
     co_await join_task(co(std::move(reader1)),
                        co(std::move(reader2)));
 }
@@ -34,9 +34,9 @@ int main()
             writer.push(2);
             i++;
         }
-    });   
-    async::BlockingExecutor().block_on(test(async::SPSCReader(spsc), 
-                                            async::SPSCReader(spsc2)));
+    });
+
+    async::BlockingExecutor().block_on(test(async::SPSCReader(spsc), async::SPSCReader(spsc2)));
     t1.join();
     t2.join();
 }
