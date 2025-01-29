@@ -7,6 +7,7 @@
 #include <atomic>
 #include "Async.h"
 #include <thread>
+#include <memory>
 namespace async {
     template <class T>
     class SingleShot {

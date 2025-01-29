@@ -1,4 +1,5 @@
 #include "AsyncExecutor.h"
+#include <bits/atomic_base.h>
 using namespace async;
 BlockingExecutor::BlockingExecutor():
     _mtx(),

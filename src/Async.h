@@ -2,6 +2,7 @@
 #include <coroutine>
 #include <optional>
 #include <tuple>
+#include <variant>
 namespace async {
 /*
     Interface defining when a awaitable is ready.

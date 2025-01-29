@@ -2,6 +2,7 @@
 #include <queue>
 #include <mutex>
 #include "Async.h"
+#include <memory>
 namespace async {
     template<class T>
     class UnBoundedSPSC {
