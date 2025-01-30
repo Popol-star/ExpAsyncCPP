@@ -5,23 +5,7 @@
 The repository aim to show a possible way to implement a asynchronous environment using coroutines.
 Inspired by the rust async environment.
 
-Async.h contains:\
--AsyncCoroutine: coroutines used in this library.\
--Executor: Interface defining coroutines executors.\
--Awaitable: Template abstract class defining a waitable premitive.
-
-AsyncExecutor.h/cpp contains:\
-Executor implementations.\
--A blocking executor (block the thread).\
--A nonblocking executor (Can be usefull for video games).
-
-SingleShot.h contains:\
--Single producer, single consumer messaging premitive. Only one element can be sended.\
-This premitive is used to send a message threadsafely.
-
-UnboundedSPSC.h contains:\
--Single producer, single consumer messaging premitive. Multiple elements can be sended.\
-This premitive is used to send messages threadsafely.
+The design may change in the future.
 
 ### Basic syntax
 
@@ -95,6 +79,7 @@ static async::AsyncCoroutine<void> coroutine(async::SingleShotReader<std::string
 int main()
 {
     using namespace std::chrono_literals;
+
     async::SingleShot<std::string> signal;
     std::thread t([writer=signal.getWriter()]() {
         std::this_thread::sleep_for(5s);
