@@ -13,6 +13,7 @@ namespace async {
     class SingleShot {
         Executor* _callback;
         std::optional<T> _data;
+        bool _writer_deleted;
         std::atomic_flag _lock;
         void lock() {
             size_t nb_try = 0;
@@ -25,7 +26,9 @@ namespace async {
     public:
         SingleShot() :_callback(nullptr),
             _data(std::nullopt),
-            _lock() {};
+            _lock(),
+            _writer_deleted(false)
+        {};
         SingleShot(const SingleShot&) = delete;
         SingleShot(SingleShot&&) = delete;
         bool trySetCallBack(Executor* waker) {
@@ -39,7 +42,7 @@ namespace async {
         void setCallBack(Executor* waker) {
             lock();
             _callback = waker;
-            if (_data && _callback) {
+            if ((_data||_writer_deleted) && _callback) {
                 _callback->awake();
             }
             _lock.clear(std::memory_order_release);
@@ -57,16 +60,26 @@ namespace async {
             _callback = nullptr;
             _lock.clear(std::memory_order_release);
         }
-        std::optional<T> tryExtractValue() {
+        void closeWriter() {
+            lock();
+            _writer_deleted = true;
+            if (_callback) {
+                _callback->awake();
+            }
+            _lock.clear(std::memory_order_release);
+        }
+        std::optional<T> tryExtractValue(bool& writer_closed) {
             std::optional<T> retval = std::nullopt;
             if (!_lock.test_and_set(std::memory_order_acquire)) {
+                writer_closed = _writer_deleted;
                 retval = std::move(_data);
                 _lock.clear(std::memory_order_release);
             }
             return retval;
         }
-        std::optional<T> extractValue() {
+        std::optional<T> extractValue(bool& writer_closed) {
             lock();
+            writer_closed = _writer_deleted;
             std::optional<T> retval = std::move(_data);
             _lock.clear(std::memory_order_release);
             return retval;
@@ -96,6 +109,11 @@ namespace async {
         void set_value(Args&& ...value)const {
             _ss->setValue(std::forward<Args>(value)...);
         }
+        ~SingleShotWriter(){
+            if (_ss) {
+                _ss->closeWriter();
+            }
+        }
     };
     template <class T>
     class SingleShotReader {
@@ -117,18 +135,21 @@ namespace async {
             _ss->setCallBack(callback);
         }
 
-        std::optional<T> tryExtractValue() const {
-            return _ss->tryExtractValue();
+        std::optional<T> tryExtractValue(bool& writer_deleted) const {
+            return _ss->tryExtractValue(writer_deleted);
         }
 
         std::optional<T> extractValue(Executor* waker) const {
             return _ss->extractValue(waker);
         }
-        std::optional<T> extractValue() const {
-            return _ss->extractValue();
+        std::optional<T> extractValue(bool& writer_deleted) const {
+            return _ss->extractValue(writer_deleted);
         }
         ~SingleShotReader() {
-            _ss->resetCallBack();
+            if (_ss) {
+                _ss->resetCallBack();
+            }
+            
         }
     };
 
@@ -139,17 +160,18 @@ namespace async {
         using result_type = T;
         SingleShotReaderAwaitable(SingleShotReader<T>&& reader) :_reader(std::move(reader)) {}
         bool poll() {
-            _result = std::move(_reader.extractValue());
-            return _result.has_value();
+            bool writer_deleted = true;
+            _result = std::move(_reader.extractValue(writer_deleted));
+            return _result.has_value()|| writer_deleted;
         }
         void subscribe(Executor* exe) {
             _reader.setCallBack(exe);
         }
-        T& await_resume()& {
-            return *_result;
+        std::optional<T>& await_resume()& {
+            return _result;
         }
-        T&& await_resume()&& {
-            return std::move(*_result);
+        std::optional<T>&& await_resume()&& {
+            return std::move(_result);
         }
     };
 
