@@ -5,9 +5,9 @@
 #pragma once
 #include <optional>
 #include <atomic>
-#include "Async.h"
 #include <thread>
 #include <memory>
+#include "Async.h"
 namespace async {
     template <class T>
     class SingleShot {
@@ -23,7 +23,9 @@ namespace async {
             }
         }
     public:
-        SingleShot() :_callback(nullptr), _data(std::nullopt), _lock() {};
+        SingleShot() :_callback(nullptr),
+            _data(std::nullopt),
+            _lock() {};
         SingleShot(const SingleShot&) = delete;
         SingleShot(SingleShot&&) = delete;
         bool trySetCallBack(Executor* waker) {
