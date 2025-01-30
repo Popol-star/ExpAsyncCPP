@@ -10,7 +10,7 @@
 #include "Async.h"
 namespace async {
     template <class T>
-    class SingleShot {
+    class SingleShotInner {
         Executor* _callback;
         std::optional<T> _data;
         bool _writer_deleted;
@@ -24,13 +24,13 @@ namespace async {
             }
         }
     public:
-        SingleShot() :_callback(nullptr),
+        SingleShotInner() :_callback(nullptr),
             _data(std::nullopt),
             _lock(),
             _writer_deleted(false)
         {};
-        SingleShot(const SingleShot&) = delete;
-        SingleShot(SingleShot&&) = delete;
+        SingleShotInner(const SingleShotInner&) = delete;
+        SingleShotInner(SingleShotInner&&) = delete;
         bool trySetCallBack(Executor* waker) {
             bool retval = !_lock.test_and_set(std::memory_order_acquire);
             if (retval) {
@@ -96,14 +96,16 @@ namespace async {
     };
     template <class T>
     class SingleShotWriter {
-        std::shared_ptr<SingleShot<T>> _ss;
+        std::shared_ptr<SingleShotInner<T>> _ss;
     public:
-        SingleShotWriter(std::shared_ptr<SingleShot<T>> ss) :_ss(std::move(ss)) {}
+        SingleShotWriter() :_ss() {}
+        SingleShotWriter(std::shared_ptr<SingleShotInner<T>> ss) :_ss(std::move(ss)) {}
         SingleShotWriter(const SingleShotWriter<T>&) = delete;
         SingleShotWriter(SingleShotWriter<T>&& src)noexcept :_ss(std::move(src._ss)) {}
         SingleShotWriter& operator=(const SingleShotWriter&) = delete;
         SingleShotWriter& operator=(SingleShotWriter&& src) noexcept {
             _ss = std::move(src._ss);
+            return *this;
         }
         template <class ...Args>
         void set_value(Args&& ...value)const {
@@ -117,14 +119,16 @@ namespace async {
     };
     template <class T>
     class SingleShotReader {
-        std::shared_ptr<SingleShot<T>> _ss;
+        std::shared_ptr<SingleShotInner<T>> _ss;
     public:
-        SingleShotReader(std::shared_ptr<SingleShot<T>> ss) :_ss(std::move(ss)) {}
+        SingleShotReader() :_ss() {}
+        SingleShotReader(std::shared_ptr<SingleShotInner<T>> ss) :_ss(std::move(ss)) {}
         SingleShotReader(const SingleShotReader<T>&) = delete;
         SingleShotReader(SingleShotReader<T>&& src)noexcept :_ss(std::move(src._ss)) {}
         SingleShotReader& operator=(const SingleShotReader&) = delete;
         SingleShotReader& operator=(SingleShotReader&& src) noexcept {
             _ss = std::move(src._ss);
+            return *this;
         }
 
         bool trySetCallBack(Executor* callback) const {
@@ -155,28 +159,50 @@ namespace async {
 
     template<class T>
     struct SingleShotReaderAwaitable :public Awaitable<SingleShotReaderAwaitable<T>> {
-        SingleShotReader<T>&& _reader;
-        std::optional<T> _result;
+        const SingleShotReader<T>& _reader;
+        mutable std::optional<T> _result;
         using result_type = T;
-        SingleShotReaderAwaitable(SingleShotReader<T>&& reader) :_reader(std::move(reader)) {}
-        bool poll() {
+        SingleShotReaderAwaitable(const SingleShotReader<T>& reader) :_reader(std::move(reader)) {}
+        bool poll() const {
             bool writer_deleted = true;
             _result = std::move(_reader.extractValue(writer_deleted));
             return _result.has_value()|| writer_deleted;
         }
-        void subscribe(Executor* exe) {
+        void subscribe(Executor* exe) const{
             _reader.setCallBack(exe);
         }
-        std::optional<T>& await_resume()& {
+        std::optional<T>& await_resume() const& {
             return _result;
         }
-        std::optional<T>&& await_resume()&& {
+        std::optional<T>&& await_resume()const&& {
             return std::move(_result);
         }
     };
 
     template<class T>
-    SingleShotReaderAwaitable<T> operator co_await(SingleShotReader<T>&& reader) {
-        return SingleShotReaderAwaitable<T>(std::move(reader));
+    SingleShotReaderAwaitable<T> operator co_await(const SingleShotReader<T>& reader) {
+        return SingleShotReaderAwaitable<T>(reader);
+    };
+
+
+
+    template<class T>
+    class SingleShot {
+    private:
+        SingleShotReader<T> _reader;
+        SingleShotWriter<T> _writer;
+        
+    public:
+        SingleShot():_reader(),_writer(){
+            auto shr = std::make_shared<SingleShotInner<T>>();
+            _reader = SingleShotReader(shr);
+            _writer = SingleShotWriter(shr);
+        }
+        SingleShotReader<T>&& getReader() {
+            return std::move(_reader);
+        }
+        SingleShotWriter<T>&& getWriter() {
+            return std::move(_writer);
+        }
     };
 }

@@ -1,18 +1,26 @@
 #include <iostream>
 #include <Async.h>
 #include <AsyncExecutor.h>
-static async::AsyncCoroutine<int> subcoroutine() {
-    co_return 200;
+#include <SingleShot.h>
+static async::AsyncCoroutine<void> coroutine(async::SingleShotReader<std::string> reader) {
+    std::optional<std::string> result = co_await reader;
+    if (result) {
+        std::cout << "result \"" << *result <<"\"" << std::endl;
+    }
+    else {
+        //in this case, the writer is deleted without sending a message.
+        std::cout << "writer deleted\n";
+    }
 }
-static async::AsyncCoroutine<double> subcoroutine2() {
-    co_return 19.2;
-}
-static async::AsyncCoroutine<void> coroutine() {
-    auto result = co_await async::join(subcoroutine(), subcoroutine2());
-    std::cout << std::get<0>(result) << std::endl;
-    std::cout << std::get<1>(result) << std::endl;
-}
+
 int main()
 {
-    async::BlockingExecutor().block_on(coroutine());
+    using namespace std::chrono_literals;
+    async::SingleShot<std::string> signal;
+    std::thread t([writer=signal.getWriter()]() {
+        std::this_thread::sleep_for(5s);
+       // writer.set_value("Message from thread");
+    });
+    async::BlockingExecutor().block_on(coroutine(signal.getReader()));
+    t.join();
 }

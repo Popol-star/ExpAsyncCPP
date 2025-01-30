@@ -217,12 +217,12 @@ struct Awaitable: private Pollable {
     bool is_ready() override
     {
         //return poll()
-        return (static_cast<T*>(this))->poll();
+        return (static_cast<const T*>(this))->poll();
     }
-    bool await_ready() 
+    bool await_ready() const
     {
         //return poll()
-        return (static_cast<T*>(this))->poll();
+        return (static_cast<const T*>(this))->poll();
     }
     template <class RET>
     bool await_suspend(std::coroutine_handle<AsyncPromise<RET>> handle) {

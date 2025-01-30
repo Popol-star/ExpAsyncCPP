@@ -3,6 +3,7 @@
 ## A simple C++20 experimental async library 
 
 The repository aim to show a possible way to implement a asynchronous environment using coroutines.
+Inspired by the rust async environment.
 
 Async.h contains:\
 -AsyncCoroutine: coroutines used in this library.\
@@ -45,7 +46,7 @@ use co_await to wait an other AsyncCoroutine (or other premitive).\
 
 an async::AsyncCoroutine can be returned by a function, method or a virtual method.
 
-### Waiting for multiple Task
+### Waiting for multiple Tasks
 
 The function async::join use used to wait multiple waitable.\
 Waiting async::join produce a tuple. 
@@ -70,6 +71,41 @@ int main()
 
 If the result isn't needed, async::join_task have the same behavior but waiting it produce void.  
 
+### Single shot premitive
+
+SingleShots are used to send only one message between 2 threads (SPSC).
+
+A SingleShot contains a not copiable writer and a not copiable reader.\
+The reader can be awaited.\
+An empty optional as a result means the writer has been deleted without sending a message.
+
+```cpp
+#include <SingleShot.h>
+static async::AsyncCoroutine<void> coroutine(async::SingleShotReader<std::string> reader) {
+    std::optional<std::string> result = co_await reader;
+    if (result) {
+        std::cout << "result \"" << *result <<"\"" << std::endl;
+    }
+    else {
+        //in this case, the writer is deleted without sending a message.
+        std::cout << "writer deleted\n";
+    }
+}
+
+int main()
+{
+    using namespace std::chrono_literals;
+    async::SingleShot<std::string> signal;
+    std::thread t([writer=signal.getWriter()]() {
+        std::this_thread::sleep_for(5s);
+        writer.set_value("Message from thread");
+    });
+    async::BlockingExecutor().block_on(coroutine(signal.getReader()));
+    t.join();
+}
+```
+
 ## Optimizations
 
 It may be slow... i dunno.
+
