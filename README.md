@@ -6,7 +6,7 @@ The repository aim to show a possible way to implement a asynchronous environmen
 
 Async.h contains:\
 -AsyncCoroutine: coroutines used in this library.\
--Executor: Interface defining an coroutines executors.\
+-Executor: Interface defining coroutines executors.\
 -Awaitable: Template abstract class defining a waitable premitive.
 
 AsyncExecutor.h/cpp contains:\
