@@ -2,10 +2,10 @@
 
 ## A simple C++20 experimental async library 
 
-The repository aim to show a possible way to implement a asynchronous environment using coroutines.
+The repository aims to show a possible way to implement an asynchronous environment using coroutines.
 Inspired by the rust async environment.
 
-The design is perfectible and not optimized, it may change in the future.
+The design is imperfect and not optimized, it may change in the future.
 
 ### Basic syntax
 
@@ -25,15 +25,15 @@ int main()
 }
 ```
 
-Use co_return instead of return.\
-use co_await to wait an other AsyncCoroutine (or other premitive).\
+Use `co_return` instead of `return`.\
+use `co_await` to wait another AsyncCoroutine (or other premitive).\
 
-an async::AsyncCoroutine can be returned by a function, method or a virtual method.
+An async::AsyncCoroutine can be returned by a function, method or a virtual method.
 
 ### Waiting for multiple Tasks
 
-The function async::join use used to wait multiple waitable.\
-Waiting async::join produce a tuple. 
+The function `async::join` use used to wait multiple waitables.\
+Waiting `async::join` produce a tuple. 
 
 ```cpp
 static async::AsyncCoroutine<int> subcoroutine() {
@@ -57,7 +57,7 @@ If the result isn't needed, async::join_task have the same behavior but waiting 
 
 ### Single shot premitive
 
-SingleShots are used to send only one message between 2 threads (SPSC).
+SingleShots are used to send single message between two threads (SPSC).
 
 A SingleShot contains a not copiable writer and a not copiable reader.\
 The reader can be awaited.\
@@ -94,9 +94,9 @@ async::util::collect is able to collect all the elements from the queue in a std
 
 ### Single producer/consumer queue
 
-SingleShots are used to send only multiple messages between 2 threads (SPSC).
+SingleShots are used to send multiple messages between two threads (SPSC).
 A SingleShot contains a not copiable writer and a not copiable reader.\
-An element can be retrieved from the queue with popAsync.
+Elements can be retrieved from the queue with `popAsync`.
 An empty optional as a result means the writer has been deleted and the queue is empty.
 
 ```cpp
