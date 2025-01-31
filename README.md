@@ -133,7 +133,7 @@ int main()
 async::utils::collect can be used to retrieve all elements in the queue in a std::vector.
 The function wait until the writer is deleted.
 
-```
+```cpp
 static async::AsyncCoroutine<void> coroutine(async::SPSCReader<std::string> reader) {
     std::vector<std::string> vec = co_await async::utils::collect(reader);
     for (std::string& str : vec) {
