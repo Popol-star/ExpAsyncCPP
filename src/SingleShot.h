@@ -171,10 +171,10 @@ namespace async {
         void subscribe(Executor* exe) const{
             _reader.setCallBack(exe);
         }
-        std::optional<T>& await_resume() const& {
+        std::optional<T>& await_resume() & {
             return _result;
         }
-        std::optional<T>&& await_resume()const&& {
+        std::optional<T>&& await_resume()&& {
             return std::move(_result);
         }
     };
@@ -191,7 +191,6 @@ namespace async {
     private:
         SingleShotReader<T> _reader;
         SingleShotWriter<T> _writer;
-        
     public:
         SingleShot():_reader(),_writer(){
             auto shr = std::make_shared<SingleShotInner<T>>();

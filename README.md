@@ -5,7 +5,7 @@
 The repository aim to show a possible way to implement a asynchronous environment using coroutines.
 Inspired by the rust async environment.
 
-The design may change in the future.
+The design is perfectible and not optimized, it may change in the future.
 
 ### Basic syntax
 
@@ -90,6 +90,72 @@ int main()
 }
 ```
 
+async::util::collect is able to collect all the elements from the queue in a std::vector.
+
+### Single producer/consumer queue
+
+SingleShots are used to send only multiple messages between 2 threads (SPSC).
+A SingleShot contains a not copiable writer and a not copiable reader.\
+An element can be retrieved from the queue with popAsync.
+An empty optional as a result means the writer has been deleted and the queue is empty.
+
+```cpp
+#include <UnBoundedSPSC.h>
+#include <string>
+static async::AsyncCoroutine<void> coroutine(async::SPSCReader<std::string> reader) {
+    std::optional<std::string> result;
+    do {
+        result = co_await reader.popAsync();
+        if (result) {
+            std::cout << "result \"" << *result << "\"" << std::endl;
+        }
+        else {
+            //in this case, the writer is deleted without sending a message.
+            std::cout << "writer deleted\n";
+        }
+    } while (result); 
+}
+
+int main()
+{
+    using namespace std::chrono_literals;
+    async::UnboundedSPSC<std::string> signal;
+    std::thread t([writer=signal.getWriter()]() {
+        for (int i = 0; i < 10; i++) {
+            std::this_thread::sleep_for(5s);
+            writer.push(std::string("message ").append(std::to_string(i)));
+        }
+    });
+    async::BlockingExecutor().block_on(coroutine(signal.getReader()));
+    t.join();
+}
+```
+async::utils::collect can be used to retrieve all elements in the queue in a std::vector.
+The function wait until the writer is deleted.
+
+```
+static async::AsyncCoroutine<void> coroutine(async::SPSCReader<std::string> reader) {
+    std::vector<std::string> vec = co_await async::utils::collect(reader);
+    for (std::string& str : vec) {
+        std::cout << str << std::endl;
+    }
+}
+
+int main()
+{
+    using namespace std::chrono_literals;
+    async::UnboundedSPSC<std::string> signal;
+    std::thread t([writer=signal.getWriter()]() {
+        for (int i = 0; i < 10; i++) {
+            std::this_thread::sleep_for(5s);
+            writer.push(std::string("message ").append(std::to_string(i)));
+        }
+    });
+    async::BlockingExecutor().block_on(coroutine(signal.getReader()));
+    t.join();
+}
+
+```
 ## Optimizations
 
 It may be slow... i dunno.
