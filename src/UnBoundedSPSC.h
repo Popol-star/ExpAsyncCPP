@@ -41,8 +41,12 @@ namespace async {
             }
         }
         void closeWriter() {
-            std::unique_lock lck(_mtx);
+            std::unique_lock lck(_mtx);7
             _writer_closed = true;
+            if (_executor) {
+                _executor->awake();
+            }
+            
         }
         void setConsumerExecutor(Executor* executor) {
             std::unique_lock lck(_mtx);
