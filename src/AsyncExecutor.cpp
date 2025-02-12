@@ -104,4 +104,3 @@ bool async::NBlockingExecutor::is_finished() const noexcept
 {
     return !_coroutine||_coroutine.done();
 }
- 

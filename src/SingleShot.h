@@ -8,7 +8,9 @@
 #include <thread>
 #include <memory>
 #include "Async.h"
+#include "SharedPoolAllocator.h"
 namespace async {
+   
     template <class T>
     class SingleShotInner {
         Executor* _callback;
@@ -100,8 +102,8 @@ namespace async {
     public:
         SingleShotWriter() :_ss() {}
         SingleShotWriter(std::shared_ptr<SingleShotInner<T>> ss) :_ss(std::move(ss)) {}
-        SingleShotWriter(const SingleShotWriter<T>&) = delete;
-        SingleShotWriter(SingleShotWriter<T>&& src)noexcept :_ss(std::move(src._ss)) {}
+        SingleShotWriter(const SingleShotWriter&) = delete;
+        SingleShotWriter(SingleShotWriter&& src)noexcept :_ss(std::move(src._ss)) {}
         SingleShotWriter& operator=(const SingleShotWriter&) = delete;
         SingleShotWriter& operator=(SingleShotWriter&& src) noexcept {
             _ss = std::move(src._ss);
@@ -124,7 +126,7 @@ namespace async {
         SingleShotReader() :_ss() {}
         SingleShotReader(std::shared_ptr<SingleShotInner<T>> ss) :_ss(std::move(ss)) {}
         SingleShotReader(const SingleShotReader<T>&) = delete;
-        SingleShotReader(SingleShotReader<T>&& src)noexcept :_ss(std::move(src._ss)) {}
+        SingleShotReader(SingleShotReader<T>&& src) noexcept :_ss(std::move(src._ss)) {}
         SingleShotReader& operator=(const SingleShotReader&) = delete;
         SingleShotReader& operator=(SingleShotReader&& src) noexcept {
             _ss = std::move(src._ss);
@@ -153,7 +155,6 @@ namespace async {
             if (_ss) {
                 _ss->resetCallBack();
             }
-            
         }
     };
 
@@ -184,8 +185,6 @@ namespace async {
         return SingleShotReaderAwaitable<T>(reader);
     };
 
-
-
     template<class T>
     class SingleShot {
     private:
@@ -193,7 +192,7 @@ namespace async {
         SingleShotWriter<T> _writer;
     public:
         SingleShot():_reader(),_writer(){
-            auto shr = std::make_shared<SingleShotInner<T>>();
+            std::shared_ptr<SingleShotInner<T>> shr = std::allocate_shared<SingleShotInner<T>>(PooledAlloc<SingleShotInner<T>>());
             _reader = SingleShotReader(shr);
             _writer = SingleShotWriter(shr);
         }

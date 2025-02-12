@@ -349,12 +349,12 @@ concept ToAwaitable = requires(T a) {
 };
 
 template <typename... AwaitableParams>
-auto join(AwaitableParams&&... params) {
+[[nodiscard("use co_await with async::join")]] auto join(AwaitableParams&&... params) {
     // Applique `to_awaitable` sur chaque paramètre pour récupérer les awaitables
     return GenericJoinAwaitable(to_awaitable(std::forward<AwaitableParams>(params))...);
 }
 template <typename... AwaitableParams>
-auto join_task(AwaitableParams&&... params) {
+[[nodiscard("use co_await with async::join_task")]] auto join_task(AwaitableParams&&... params) {
     return TaskJoinAwaitable(to_awaitable(std::forward<AwaitableParams>(params))...);
 }
 }
