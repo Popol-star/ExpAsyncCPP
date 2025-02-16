@@ -12,6 +12,13 @@ struct Pollable {
     //if return true, the executor should resume.
     virtual bool is_ready() = 0;
 };
+struct Timer{
+    size_t remaining;
+    Timer(size_t ms):remaining(ms){
+         
+    }
+
+};
 /*
     Executor Interface.
 */
@@ -32,6 +39,10 @@ public:
     void add_task(std::coroutine_handle<> handle, TaskPriority priority = TaskPriority::Indirect){
         add_task(handle, nullptr, priority);
     }
+    /*
+    
+    */
+    virtual void register_timer(Timer* timer)=0;
     //maybe virtual destructor?
     //I dunno, maybe?
 };
@@ -290,7 +301,28 @@ auto to_awaitable(Awaitable&& awaitable) {
         return std::forward<Awaitable>(awaitable);
     }
 }
+class TimerAwaitable: public Awaitable<TimerAwaitable>{
+    Timer&& timer;
+    public:
+    TimerAwaitable(Timer&& t):timer(std::move(t)){}
+    // Vérifie si tous les awaitables sont prêts
+    bool poll() const {
+        return timer.remaining==0;
+    }
 
+    // Souscrire tous les awaitables à un exécuteur
+    void subscribe(Executor* executor) {
+        executor->register_timer(&timer);
+    }
+
+    // Récupère les résultats de tous les awaitables
+    constexpr void  await_resume() noexcept{
+    }
+};
+
+inline TimerAwaitable operator co_await(Timer&& timer) {
+    return TimerAwaitable(std::move(timer));
+}
 template<class... Awaitables>
 struct GenericJoinAwaitable : Awaitable<GenericJoinAwaitable<Awaitables...>> {
     std::tuple<Awaitables...> awaitables;

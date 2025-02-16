@@ -57,30 +57,18 @@ public:
     }
 };
 
-static async::AsyncCoroutine<void> coroutine(TaskThread& threads) {
+static async::AsyncCoroutine<void> coroutine() {
     using namespace std::chrono_literals;
     std::cout <<" wait to the end"<< std::endl;
-    auto i = co_await async::join(
-        threads.addTask([]() {
-            std::this_thread::sleep_for(15s);
-            std::cout << "sleeped 15s" << std::endl;
-            return 1; }),
-        threads.addTask([]() {
-            std::this_thread::sleep_for(10s);
-            std::cout << "sleeped 10s" << std::endl;
-            return 1; })
-        );
-    auto i2 = co_await threads.addTask([]() {
-        std::this_thread::sleep_for(10s);
-        std::cout << "sleeped 10s" << std::endl;
-        return 1; });
+    std::cout <<"sleep 5s"<< std::endl;
+    co_await async::Timer(5000);
+    
     std::cout << "finished\n";
 }
 
 int main()
 {
     using namespace std::chrono_literals;
-    TaskThread threads(2);
     async::BlockingExecutor()
-        .block_on(coroutine(threads));
+        .block_on(coroutine());
 }
