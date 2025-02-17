@@ -142,7 +142,7 @@ void async::NBlockingExecutor::add_task(std::coroutine_handle<> handle, Pollable
 void async::NBlockingExecutor::update()
 {
     auto now = std::chrono::steady_clock::now();
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - _last_call).count();
+    unsigned long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - _last_call).count();
     auto timer_it = _timers.begin();
     while (timer_it != _timers.end()) {
         Timer* timer = *timer_it;

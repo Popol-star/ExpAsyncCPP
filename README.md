@@ -156,6 +156,33 @@ int main()
 }
 
 ```
+## Timers
+
+It is possible to asynchronously wait a timer in milliseconds.
+Timers use the executor's thread to update timers. (no background threads)
+```cpp
+static async::AsyncCoroutine<void> blinker() {
+    while (true) {
+        co_await async::Timer(1000);
+        std::cout << "Light on\n";
+        co_await async::Timer(1000);
+        std::cout << "Light off \n";
+    }
+}
+static async::AsyncCoroutine<void> coroutine() {
+        co_await async::Timer(2000);
+        std::cout << "Waited 2 seconds\n";
+        co_await async::Timer(60000);
+        std::cout << "Waited 1 minute\n";
+}
+int main()
+{
+    using namespace std::chrono_literals;
+    async::BlockingExecutor()
+        .block_on({ blinker(),coroutine()});
+}
+```
+
 ## Optimizations
 
 It may be slow... i dunno.

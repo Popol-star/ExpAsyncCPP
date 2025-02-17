@@ -60,39 +60,23 @@ public:
     }
 };
 
-static async::AsyncCoroutine<void> coroutine() {
-    using namespace std::chrono_literals;
-    bool light_state = false;
+static async::AsyncCoroutine<void> blinker() {
     while (true) {
-        co_await async::Timer(500);
-        if (light_state) {
-            std::cout << "light on\n";
-        }
-        else {
-            std::cout << "light off\n";
-        }
-        light_state = !light_state;
-   }
-}
-static async::AsyncCoroutine<void> coroutine2() {
-    using namespace std::chrono_literals;
-    bool light_state = false;
-    while (true) {
-
-        co_await async::Timer(5000);
-       
-        if (light_state) {
-            std::cout << "ZGEG on\n";
-        }
-        else {
-            std::cout << "ZGEG off\n";
-        }
-        light_state = !light_state;
+        co_await async::Timer(1000);
+        std::cout << "Light on\n";
+        co_await async::Timer(1000);
+        std::cout << "Light off \n";
     }
+}
+static async::AsyncCoroutine<void> coroutine() {
+        co_await async::Timer(2000);
+        std::cout << "Waited 2 seconds\n";
+        co_await async::Timer(60000);
+        std::cout << "Waited 1 minute\n";
 }
 int main()
 {
     using namespace std::chrono_literals;
     async::BlockingExecutor()
-        .block_on({ coroutine(),coroutine2()});
+        .block_on({ blinker(),coroutine()});
 }
