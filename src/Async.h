@@ -389,4 +389,48 @@ template <typename... AwaitableParams>
 [[nodiscard("use co_await with async::join_task")]] auto join_task(AwaitableParams&&... params) {
     return TaskJoinAwaitable(to_awaitable(std::forward<AwaitableParams>(params))...);
 }
+template<class AWAITABLE>
+class TimeoutAwaitable:public Awaitable<TimeoutAwaitable<AWAITABLE>>{
+private:
+  Timer _timer;
+  AWAITABLE _awaitable; 
+  enum State{
+    pending,
+    ok,
+    timeout
+  }_state;
+  public:
+  using result_type=std::optional<typename AWAITABLE::result_type>;
+    TimeoutAwaitable(AWAITABLE&& awt ,size_t ms):_awaitable(std::move(awt)),_timer(ms){}
+        // Vérifie si tous les awaitables sont prêts
+    bool poll() {
+       if(_awaitable.poll()){
+        _state=ok;
+       }else if(_timer.remaining==0){
+        _state=timeout;
+       }
+       return _state!=pending;
+    }
+
+    // Souscrire tous les awaitables à un exécuteur
+    void subscribe(Executor* executor) {
+        executor->register_timer(&_timer);
+        _awaitable.subscribe(executor);
+    }
+
+    // Récupère les résultats de tous les awaitables
+    auto await_resume() {
+        result_type res=std::nullopt;
+        if(_state==ok){
+            res.emplace(std::move(_awaitable.await_resume()));
+        }
+        return res;
+    }
+};
+template<class AWT>
+auto timeout(AWT&& data,size_t ms){
+    return TimeoutAwaitable(to_awaitable(data),ms);
 }
+}
+
+

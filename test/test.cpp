@@ -68,15 +68,21 @@ static async::AsyncCoroutine<void> blinker() {
         std::cout << "Light off \n";
     }
 }
-static async::AsyncCoroutine<void> coroutine() {
-        co_await async::Timer(2000);
-        std::cout << "Waited 2 seconds\n";
-        co_await async::Timer(60000);
-        std::cout << "Waited 1 minute\n";
+static async::AsyncCoroutine<void> coroutine(TaskThread& t) {
+        auto test=co_await async::timeout(t.addTask([](){
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+            std::cout<<"finished \n";
+            return 3;}),3000);
+            if(test){
+                 std::cout<<**test<<'\n';
+            }else{
+                std::cout<<"timed out \n";
+            }
 }
 int main()
 {
     using namespace std::chrono_literals;
+    TaskThread t(2);
     async::BlockingExecutor()
-        .block_on({ blinker(),coroutine()});
+        .block_on({coroutine(t)});
 }

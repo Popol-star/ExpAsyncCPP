@@ -162,7 +162,7 @@ namespace async {
     struct SingleShotReaderAwaitable :public Awaitable<SingleShotReaderAwaitable<T>> {
         const SingleShotReader<T>& _reader;
         mutable std::optional<T> _result;
-        using result_type = T;
+        using result_type = std::optional<T>;
         SingleShotReaderAwaitable(const SingleShotReader<T>& reader) :_reader(std::move(reader)) {}
         bool poll() const {
             bool writer_deleted = true;
@@ -172,10 +172,10 @@ namespace async {
         void subscribe(Executor* exe) const{
             _reader.setCallBack(exe);
         }
-        std::optional<T>& await_resume() & {
+        result_type& await_resume() & {
             return _result;
         }
-        std::optional<T>&& await_resume()&& {
+        result_type&& await_resume()&& {
             return std::move(_result);
         }
     };
