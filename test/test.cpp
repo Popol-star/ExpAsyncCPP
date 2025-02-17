@@ -62,16 +62,37 @@ public:
 
 static async::AsyncCoroutine<void> coroutine() {
     using namespace std::chrono_literals;
-    std::cout <<" wait to the end"<< std::endl;
-    std::cout <<"sleep 5s"<< std::endl;
-    co_await async::Timer(5000);
-    
-    std::cout << "finished\n";
+    bool light_state = false;
+    while (true) {
+        co_await async::Timer(500);
+        if (light_state) {
+            std::cout << "light on\n";
+        }
+        else {
+            std::cout << "light off\n";
+        }
+        light_state = !light_state;
+   }
 }
+static async::AsyncCoroutine<void> coroutine2() {
+    using namespace std::chrono_literals;
+    bool light_state = false;
+    while (true) {
 
+        co_await async::Timer(5000);
+       
+        if (light_state) {
+            std::cout << "ZGEG on\n";
+        }
+        else {
+            std::cout << "ZGEG off\n";
+        }
+        light_state = !light_state;
+    }
+}
 int main()
 {
     using namespace std::chrono_literals;
     async::BlockingExecutor()
-        .block_on(coroutine());
+        .block_on({ coroutine(),coroutine2()});
 }

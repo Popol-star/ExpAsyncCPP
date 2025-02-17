@@ -202,7 +202,7 @@ struct AsyncCoroutine<void> {
     operator bool() const noexcept {
         return handle!=nullptr;
     }
-    void set_executor(Executor* executor) {
+    void set_executor(Executor* executor)const {
         handle.promise().executor = executor;
     }
     std::coroutine_handle<AsyncPromise<void>> getHandle() const noexcept {

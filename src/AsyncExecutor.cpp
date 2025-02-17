@@ -6,26 +6,38 @@ BlockingExecutor::BlockingExecutor():
     _awake(false),
     _var(),
     _waitings(),
+    _minimum_remaining_timer(std::numeric_limits<size_t>::max()),
     _timers()
 {
 }
 
 void async::BlockingExecutor::register_timer(Timer *timer)
 {
+    _minimum_remaining_timer = std::min(_minimum_remaining_timer, timer->remaining);
     _timers.push_back(timer);
 }
 
-void BlockingExecutor::block_on(AsyncCoroutine<void> coroutine)
+template<class IT,class PREDICATE>
+bool logical_and(IT begin,IT end,PREDICATE fn) {
+    bool retval = true;
+    while (begin != end) {
+        retval &= fn(*begin);
+        ++begin;
+    }
+    return retval;
+}
+void BlockingExecutor::block_on(std::initializer_list<AsyncCoroutine<void>> coroutines)
 {
     std::chrono::time_point<std::chrono::steady_clock> last_call;
-    
-    coroutine.set_executor(this);
-    _waitings.push_back({ coroutine.handle,nullptr });
+    for (auto& coroutine : coroutines) {
+        coroutine.set_executor(this);
+        _waitings.push_back({ coroutine.handle,nullptr });
+    }
+
     _awake = true;
     size_t slp=0;
-    while (!coroutine.done())
+    while (!logical_and(coroutines.begin(), coroutines.end(), [](const AsyncCoroutine<void>& coroutine) {return coroutine.done(); }))
     {
-
         if(_timers.empty())
         {
             std::unique_lock lck(_mtx);
@@ -34,17 +46,13 @@ void BlockingExecutor::block_on(AsyncCoroutine<void> coroutine)
         }
         else{
             std::unique_lock lck(_mtx);
-            _var.wait_for(lck,std::chrono::milliseconds(slp), [this]() {return _awake; });
+            _var.wait_for(lck,std::chrono::milliseconds(_minimum_remaining_timer), [this]() {return _awake; });
             _awake = false;
         }
+        _minimum_remaining_timer = std::numeric_limits<size_t>::max();
         update_timers(last_call);
+        last_call = std::chrono::steady_clock::now();
         update_coroutines();
-        if(!_timers.empty()){
-            slp= (*std::min_element(_timers.begin(),_timers.end(),[](Timer* t1,Timer* t2){
-                return std::min(t1->remaining,t2->remaining);
-            }))->remaining;
-        }
-        last_call=std::chrono::steady_clock::now();
     }
    
 }
@@ -66,10 +74,10 @@ void async::BlockingExecutor::update_coroutines()
     }
 }
 
-void async::BlockingExecutor::update_timers(const std::chrono::_V2::steady_clock::time_point &last_call)
+void async::BlockingExecutor::update_timers(const std::chrono::time_point<std::chrono::steady_clock>&last_call)
 {
     auto timespan = std::chrono::steady_clock::now() - last_call;
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(timespan).count();
+    unsigned long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(timespan).count();
     auto it_timer = _timers.begin();
     while (it_timer != _timers.end())
     {
@@ -77,7 +85,7 @@ void async::BlockingExecutor::update_timers(const std::chrono::_V2::steady_clock
         if (timer->remaining > ms)
         {
             timer->remaining -= ms;
-          
+            _minimum_remaining_timer = std::min(_minimum_remaining_timer, timer->remaining);
             ++it_timer;
         }
         else
@@ -133,6 +141,24 @@ void async::NBlockingExecutor::add_task(std::coroutine_handle<> handle, Pollable
 
 void async::NBlockingExecutor::update()
 {
+    auto now = std::chrono::steady_clock::now();
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - _last_call).count();
+    auto timer_it = _timers.begin();
+    while (timer_it != _timers.end()) {
+        Timer* timer = *timer_it;
+        if (timer->remaining > ms)
+        {
+            timer->remaining -= ms;
+
+            ++timer_it;
+        }
+        else
+        {
+            timer->remaining = 0;
+            timer_it = _timers.erase(timer_it);
+            _awake.store(true, std::memory_order_release);
+        }
+    }
     while (_awake.exchange(false, std::memory_order_consume)) {
         auto it = _waitings.begin();
         while (it != _waitings.end()) {
@@ -145,6 +171,7 @@ void async::NBlockingExecutor::update()
             }
         }
     }
+    _last_call = std::chrono::steady_clock::now();
 }
 
 void async::NBlockingExecutor::start(AsyncCoroutine<void> coroutine)
