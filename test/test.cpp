@@ -11,6 +11,7 @@ private:
     std::mutex _mtx;
     std::condition_variable _cond;
     std::vector<std::thread> _threads;
+    bool stopped = false;
 public:
     TaskThread(size_t nb_threads) :_queue(), _threads(), _mtx() {
         for (int i = 0; i < nb_threads; i++) {
@@ -18,12 +19,12 @@ public:
                 while (true) {
                     std::unique_lock lck(_mtx);
                     _cond.wait(lck, [this]() {return !_queue.empty(); });
-                    auto fn = std::move(_queue.front());
+                    std::move_only_function<void()> fn =std::move(_queue.front());
                     _queue.pop();
                     lck.unlock();
                     fn();
                 }
-                });
+            });
         }
     }
     template <class FUNC>
@@ -45,11 +46,13 @@ public:
             lck.unlock();
             _cond.notify_one();
         }
-
         return ss.getReader();
     }
 
     ~TaskThread() {
+        _mtx.lock();
+        stopped = true;
+        _mtx.unlock();
         for (std::thread& t : _threads)
         {
             t.join();

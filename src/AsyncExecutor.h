@@ -5,6 +5,7 @@
 #include <vector>
 #include <condition_variable>
 #include <atomic>
+#include "SharedPoolAllocator.h"
 namespace async {
     class BlockingExecutor :private Executor {
     private:
@@ -14,7 +15,7 @@ namespace async {
         };
         std::mutex _mtx;
         std::condition_variable _var;
-        std::list<WaitingRoom> _waitings;
+        std::list<WaitingRoom, ThreadLocalPooledAlloc<async::BlockingExecutor::WaitingRoom>> _waitings;
         bool _awake;
         // Inherited via Executor
         void awake() override;
